@@ -158,58 +158,112 @@
 // };
 
 // middleware/verifyHitPay.js
+// const crypto = require("crypto");
+
+// const verifyHitPay = (req, res, next) => {
+//   console.log("=== HitPay Webhook Verification ===");
+
+//   try {
+//     // ✅ Guard: body must exist and be parsed
+//     if (!req.body || Object.keys(req.body).length === 0) {
+//       console.log("❌ Empty or unparsed body — urlencoded parser may have failed");
+//       return res.status(400).json({ message: "Empty body" });
+//     }
+
+//     const body = req.body;
+//     const receivedSignature = body.hmac;
+
+//     console.log("Full body      :", body);
+//     console.log("Received HMAC  :", receivedSignature);
+
+//     if (!receivedSignature) {
+//       console.log("❌ No HMAC in payload");
+//       return res.status(400).json({ message: "Missing HMAC signature" });
+//     }
+
+//     // ✅ Sort keys alphabetically, exclude 'hmac'
+//     const sortedKeys = Object.keys(body)
+//       .filter((key) => key !== "hmac")
+//       .sort();
+
+//     console.log("Sorted keys    :", sortedKeys);
+
+//     // ✅ Concatenate as key+value with no separator
+//     const payloadString = sortedKeys
+//       .map((key) => `${key}${body[key]}`)
+//       .join("");
+
+//     console.log("Payload string :", payloadString);
+
+//     // ✅ HMAC-SHA256 with HITPAY_SALT
+//     const computedHash = crypto
+//       .createHmac("sha256", process.env.HITPAY_SALT)
+//       .update(payloadString)
+//       .digest("hex");
+
+//     console.log("Computed HMAC  :", computedHash);
+//     console.log("Received HMAC  :", receivedSignature);
+
+//     if (computedHash !== receivedSignature) {
+//       console.log("❌ HMAC mismatch — invalid signature");
+//       return res.status(400).json({ message: "Invalid signature" });
+//     }
+
+//     console.log("✅ HMAC verified successfully");
+//     next();
+
+//   } catch (err) {
+//     console.error("❌ verifyHitPay error:", err.message);
+//     return res.status(500).json({ message: "Signature verification failed" });
+//   }
+// };
+
+
+// module.exports = verifyHitPay;
+
+
 const crypto = require("crypto");
 
 const verifyHitPay = (req, res, next) => {
   console.log("=== HitPay Webhook Verification ===");
 
   try {
-    // ✅ Guard: body must exist and be parsed
+    // ✅ Guard: body must exist
     if (!req.body || Object.keys(req.body).length === 0) {
-      console.log("❌ Empty or unparsed body — urlencoded parser may have failed");
+      console.log("❌ Empty body");
       return res.status(400).json({ message: "Empty body" });
     }
 
-    const body = req.body;
-    const receivedSignature = body.hmac;
+    console.log("Full body:", req.body);
+    console.log("Headers:", req.headers);
 
-    console.log("Full body      :", body);
-    console.log("Received HMAC  :", receivedSignature);
+    // ✅ New event webhook uses 'Hitpay-Signature' header
+    const receivedSignature = req.headers["hitpay-signature"];
+    console.log("Hitpay-Signature header:", receivedSignature);
 
     if (!receivedSignature) {
-      console.log("❌ No HMAC in payload");
-      return res.status(400).json({ message: "Missing HMAC signature" });
+      console.log("❌ No Hitpay-Signature header found");
+      return res.status(400).json({ message: "Missing signature" });
     }
 
-    // ✅ Sort keys alphabetically, exclude 'hmac'
-    const sortedKeys = Object.keys(body)
-      .filter((key) => key !== "hmac")
-      .sort();
+    // ✅ Compute HMAC over raw JSON body string
+    // const rawBody = JSON.stringify(req.body);
+    console.log("Raw body for HMAC:", rawBody);
 
-    console.log("Sorted keys    :", sortedKeys);
-
-    // ✅ Concatenate as key+value with no separator
-    const payloadString = sortedKeys
-      .map((key) => `${key}${body[key]}`)
-      .join("");
-
-    console.log("Payload string :", payloadString);
-
-    // ✅ HMAC-SHA256 with HITPAY_SALT
     const computedHash = crypto
       .createHmac("sha256", process.env.HITPAY_SALT)
-      .update(payloadString)
+      .update(rawBody)
       .digest("hex");
 
-    console.log("Computed HMAC  :", computedHash);
-    console.log("Received HMAC  :", receivedSignature);
+    console.log("Computed  :", computedHash);
+    console.log("Received  :", receivedSignature);
 
     if (computedHash !== receivedSignature) {
-      console.log("❌ HMAC mismatch — invalid signature");
+      console.log("❌ Signature mismatch");
       return res.status(400).json({ message: "Invalid signature" });
     }
 
-    console.log("✅ HMAC verified successfully");
+    console.log("✅ Signature verified successfully");
     next();
 
   } catch (err) {
@@ -217,6 +271,5 @@ const verifyHitPay = (req, res, next) => {
     return res.status(500).json({ message: "Signature verification failed" });
   }
 };
-
 
 module.exports = verifyHitPay;

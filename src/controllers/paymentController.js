@@ -173,29 +173,70 @@ exports.createPayment = async (req, res) => {
 };
 
 // ✅ Webhook — called by HitPay after payment is completed
+// exports.hitpayWebhook = async (req, res) => {
+//   try {
+//     console.log("✅ WEBHOOK HIT — body:", req.body);
+
+//     const data = req.body;
+
+//     // ✅ HitPay sends payment_request_id in webhook body
+//     const payment = await Payment.findOne({
+//       payment_id: data.payment_request_id
+//     });
+
+//     console.log("Payment found in DB:", payment);
+
+//     if (!payment) {
+//       console.log("❌ Payment not found for payment_request_id:", data.payment_request_id);
+//       return res.status(404).json({ message: "Payment not found" });
+//     }
+
+//     // ✅ Update status (completed / failed)
+//     payment.status = data.status;
+//     await payment.save();
+
+//     console.log("✅ Payment status updated to:", data.status);
+
+//     res.status(200).json({ message: "Webhook processed" });
+
+//   } catch (error) {
+//     console.error("❌ hitpayWebhook error:", error);
+//     res.status(500).json({ error: "Webhook error" });
+//   }
+// };
+
 exports.hitpayWebhook = async (req, res) => {
   try {
+    console.log("✅ CONTROLLER EXECUTED");
     console.log("✅ WEBHOOK HIT — body:", req.body);
 
     const data = req.body;
 
-    // ✅ HitPay sends payment_request_id in webhook body
+    // ✅ New event webhook payload has different structure
+    // Log it first to see exact field names
+    console.log("Payment data:", JSON.stringify(data, null, 2));
+
+    // ✅ Try both field names to be safe
+    const paymentRequestId = data.payment_request_id 
+      || data?.data?.payment_request_id 
+      || data?.id;
+
+    console.log("Looking for payment_request_id:", paymentRequestId);
+
     const payment = await Payment.findOne({
-      payment_id: data.payment_request_id
+      payment_id: paymentRequestId
     });
 
-    console.log("Payment found in DB:", payment);
-
     if (!payment) {
-      console.log("❌ Payment not found for payment_request_id:", data.payment_request_id);
+      console.log("❌ Payment not found for id:", paymentRequestId);
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // ✅ Update status (completed / failed)
-    payment.status = data.status;
+    const status = data.status || data?.data?.status;
+    payment.status = status;
     await payment.save();
 
-    console.log("✅ Payment status updated to:", data.status);
+    console.log("✅ Payment status updated to:", status);
 
     res.status(200).json({ message: "Webhook processed" });
 
@@ -212,7 +253,7 @@ exports.getWallet = async (req, res) => {
 
     const payments = await Payment.find({
       userId,
-      status: "completed"
+      status: "pending"
     });
 
     console.log("Wallet query — userId:", userId, "completed payments:", payments.length);
@@ -228,6 +269,34 @@ exports.getWallet = async (req, res) => {
   } catch (error) {
     console.error("❌ getWallet error:", error);
     res.status(500).json({ error: "Failed to fetch wallet" });
+  }
+};
+
+// ✅ Get All Payments (History)
+exports.getAllPayments = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const payments = await Payment.find({ userId })
+      .sort({ createdAt: -1 }); // latest first
+
+    console.log("📊 Payments fetched:", payments.length);
+
+    // ✅ Format response
+    const formattedPayments = payments.map((p) => ({
+      date: p.createdAt,
+      amount: p.amount,
+      status: p.status
+    }));
+
+    res.json({
+      count: formattedPayments.length,
+      payments: formattedPayments
+    });
+
+  } catch (error) {
+    console.error("❌ getAllPayments error:", error);
+    res.status(500).json({ error: "Failed to fetch payments" });
   }
 };
 

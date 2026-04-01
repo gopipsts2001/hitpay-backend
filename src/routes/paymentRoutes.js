@@ -6,7 +6,8 @@ const {
   createPayment,
   hitpayWebhook,
   getPaymentStatus,
-  getWallet
+  getWallet,
+  getAllPayments
 } = require("../controllers/paymentController");
 
 const verifyHitPay = require("../middleware/verifyHitPay");
@@ -15,14 +16,21 @@ const verifyHitPay = require("../middleware/verifyHitPay");
 router.post("/create", createPayment);
 
 // ✅ Webhook: urlencoded parser applied here only, before verifyHitPay
-router.post(
-  "/webhook",
-  express.urlencoded({ extended: false }),
-  verifyHitPay,
-  hitpayWebhook
-);
+// router.post(
+//   "/webhook",
+//   express.urlencoded({ extended: false }),
+//   verifyHitPay,
+//   hitpayWebhook
+// );
+
+router.post("/webhook", (req, res, next) => {
+  console.log("🔥 WEBHOOK ROUTE HIT");
+  next();
+}, verifyHitPay, hitpayWebhook);
+// router.post("/webhook", verifyHitPay, hitpayWebhook);
 
 router.get("/wallet/:userId", getWallet);
+router.get("/history/:userId", getAllPayments);
 
 // ✅ Dynamic route last
 router.get("/:id", getPaymentStatus);
