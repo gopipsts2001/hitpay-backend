@@ -15,13 +15,6 @@ const verifyHitPay = require("../middleware/verifyHitPay");
 // ✅ Specific routes first
 router.post("/create", createPayment);
 
-// ✅ Webhook: urlencoded parser applied here only, before verifyHitPay
-// router.post(
-//   "/webhook",
-//   express.urlencoded({ extended: false }),
-//   verifyHitPay,
-//   hitpayWebhook
-// );
 
 router.post("/webhook", (req, res, next) => {
   console.log("🔥 WEBHOOK ROUTE HIT");
